@@ -130,16 +130,41 @@ def deleteBucketFunction():
 # 의도처럼 동작 X, 아직 미완성 Function
 @app.route("/getObjectContent", methods=["GET"])
 def getObjectContentFunction():
-    object_content = s3.select_object_content(Bucket="keti-rgw-bucket-newbucket3", key="rookObj")
+    # object_content = s3.select_object_content(Bucket="keti-rgw-bucket-newbucket3", key="rookObj")
+    # print("object_content: ", object_content)
+    try:
+        return_data = {}
 
-    print("object_content: ", object_content)
-    return object_content
+        local_s3 = boto3.resource(
+                "s3",
+                endpoint_url=endpoint,
+                aws_access_key_id=RGW_ACCESS_KEY_ID,
+                aws_secret_access_key=RGW_SECRET_ACCESS_KEY
+                )
+
+        #boto3.resource.Object($Bucketanme, $key)
+        objects = local_s3.Object("keti-rgw-bucket-newbucket2", "rookObj-new.txt")
+        #return_data['Object'] = objects.content_disposition
+        #return_data['get_data'] = objects.get().ContentDisposition
+        #return jsonify(return_data), 200
+        return jsonify(object.get()), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route("/createObject", methods=["POST"])
 def createObjectFunction():
-    #alert("This Function is createObjectFunction")
-    
-    return 200
+    try:
+        local_s3 = boto3.resource(
+            "s3",
+            endpoint_url=endpoint,
+            aws_access_key_id=RGW_ACCESS_KEY_ID,
+            aws_secret_access_key=RGW_SECRET_ACCESS_KEY
+        )
+        bucket = local_s3.Bucket('keti-rgw-bucket-newbucket2')
+        bucket.put_object(Key='rookObj-new.txt', Body="createObject Test")
+        return jsonify({"message": f"Create Object Success"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
     app.run()
