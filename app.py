@@ -127,13 +127,20 @@ def deleteBucketFunction():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# 의도처럼 동작 X, 아직 미완성 Function
 @app.route("/getObjectContent", methods=["GET"])
 def getObjectContentFunction():
-    # object_content = s3.select_object_content(Bucket="keti-rgw-bucket-newbucket3", key="rookObj")
-    # print("object_content: ", object_content)
+    parameter_ = request.args.to_dict(flat=True)
+
+    if "bucketName" not in parameter_:
+        return jsonify({"error": "Missing 'bucketName' parameter"}), 400
+    if "fileName" not in parameter_:
+        return jsonify({"error": "Missing 'fileName' parameter"}), 400
+
+    bucket_name = parameter_["bucketName"]
+    file_name = parameter_["fileName"]
+
     try:
-        return_data = {}
+        object_content = {}
 
         local_s3 = boto3.resource(
                 "s3",
@@ -143,16 +150,31 @@ def getObjectContentFunction():
                 )
 
         #boto3.resource.Object($Bucketanme, $key)
-        objects = local_s3.Object("keti-rgw-bucket-newbucket2", "rookObj-new.txt")
-        #return_data['Object'] = objects.content_disposition
-        #return_data['get_data'] = objects.get().ContentDisposition
-        #return jsonify(return_data), 200
-        return jsonify(object.get()), 200
+        obj = local_s3.Object(bucket_name, file_name)
+        response = obj.get()
+        data = response['Body'].read()
+        object_content['Body']=str(data, 'utf-8')
+
+        return jsonify(object_content), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 @app.route("/createObject", methods=["POST"])
 def createObjectFunction():
+
+    parameter_ = request.args.to_dict(flat=True)
+
+    if "bucketName" not in parameter_:
+        return jsonify({"error": "Missing 'bucketName' parameter"}), 400
+    if "fileName" not in parameter_:
+        return jsonify({"error": "Missing 'fileName' parameter"}), 400
+    if "fileContent" not in parameter_:
+        return jsonify({"error": "Missing 'fileContent' parameter"}), 400
+
+    bucket_name = parameter_["bucketName"]
+    file_name = parameter_["fileName"]
+    file_content = parameter_["fileContent"] # 수정 및 코드 업데이트 필요! -> 현재 전달받은 값밖게안됨, 파일등으로 바꾸기위해선 해당 내용도 수용가능하도록 바꿔야
+
     try:
         local_s3 = boto3.resource(
             "s3",
@@ -160,8 +182,9 @@ def createObjectFunction():
             aws_access_key_id=RGW_ACCESS_KEY_ID,
             aws_secret_access_key=RGW_SECRET_ACCESS_KEY
         )
-        bucket = local_s3.Bucket('keti-rgw-bucket-newbucket2')
-        bucket.put_object(Key='rookObj-new.txt', Body="createObject Test")
+        bucket = local_s3.Bucket(bucket_name)
+        bucket.put_object(Key=file_name, Body=file_content)
+
         return jsonify({"message": f"Create Object Success"}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
