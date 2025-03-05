@@ -1,7 +1,11 @@
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, send_from_directory
+from werkzeug.utils import secure_filename
+from flask_cors import CORS
 import os
 import boto3
+import datetime
 app = Flask(__name__)
+CORS(app)
 
 @app.route('/')
 def hello():
@@ -26,10 +30,11 @@ s3 = boto3.client(
 #####################################################################
 #####################################################################
 #####################################################################
+UPLOAD_FOLDER = "nas_storage"  # 저장할 폴더 지정
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-
-@app.route("/list_buckets", methods=["GET"])
-def list_buckets():
+@app.route("/listOfBuckets", methods=["GET"])
+def listOfBucketsFunction():
     """
     Ceph RGW의 S3 API를 사용하여 버킷 목록을 가져오는 API
     """
@@ -188,6 +193,79 @@ def createObjectFunction():
         return jsonify({"message": f"Create Object Success"}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+# react web ui test
+@app.route("/createObject_v2", methods=["POST"])
+#@app.route("/upload", methods=["POST"])
+def createObjectFunction_v2():
+
+    if "file" not in request.files:
+        return jsonify({"error": "No file part"}), 400
+    
+    file = request.files["file"]
+    if file.filename == "":
+        return jsonify({"error": "No selected file"}), 400
+
+    if "bucket" not in request.form:
+        return jsonify({"error": "No bucket part"}), 400
+    bucket_name = request.form["bucket"]
+    if bucket_name == "":
+        return jsonify({"error": "No selected bucket"}), 400
+
+    #filename = secure_filename(file.filename)  # 보안 처리된 파일 이름 사용
+    #file.save(os.path.join(UPLOAD_FOLDER, filename))
+    #return jsonify({"message": "File uploaded successfully", "filename": filename}), 201
+    try:
+        local_s3 = boto3.resource(
+            "s3",
+            endpoint_url=endpoint,
+            aws_access_key_id=RGW_ACCESS_KEY_ID,
+            aws_secret_access_key=RGW_SECRET_ACCESS_KEY
+        )
+        # bucket = local_s3.Bucket(bucket_name)
+        # bucket = local_s3.Bucket("keti-rgw-bucket-newbucket")
+        print('bucketname: ', bucket_name)   # 10.0.0.254 - - [28/Feb/2025 09:00:36] "POST /createObject_v2 HTTP/1.1" 404 - 해결 해야됨 2025 02 28
+        bucket = local_s3.Bucket(bucket_name)
+        bucket.put_object(Key=file.filename, Body=file)
+
+        return jsonify({"message": f"Create Object Success"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/getDownloadObject", methods=["POST"])
+def donwloadObjectFunction():
+    if "bucket" not in request.form:
+        return jsonify({"error": "No select bucket"}), 400
+    bucket_name = request.form["bucket"]
+    if bucket_name == "":
+        return jsonify({"error": "empty bucket_name"}), 400
+
+    if "obj" not in request.form:
+        return jsonify({"error": "No select object"}), 400
+    obj_name = request.form["obj"]
+    if obj_name == "":
+        return jsonify({"error": "No select object"}), 400
+
+    try:
+        print('downloadObject')
+
+        download_link = s3.generate_presigned_url(
+                ClientMethod="get_object",
+                Params={
+                    'Bucket': bucket_name,
+                    'Key': obj_name,
+                    },
+                ExpiresIn=30
+                #ExpiresIn=datetime.timedelta(seconds=30)
+                );
+        print("Create Download Link URL Success!!")
+
+        #return jsonify({"message": f"Test Message: Download Object"}), 200
+        return jsonify({"link": download_link}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 
 if __name__ == '__main__':
     app.run()
