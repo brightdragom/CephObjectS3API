@@ -21,12 +21,29 @@ RGW_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
 RGW_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
 endpoint="http://{}:{}".format(HOST, PORT)
 
-s3 = boto3.client(
-    "s3",
-    endpoint_url=endpoint,
-    aws_access_key_id=RGW_ACCESS_KEY_ID,
-    aws_secret_access_key=RGW_SECRET_ACCESS_KEY
-)
+#s3 = boto3.client(
+#    "s3",
+#    endpoint_url=endpoint,
+#    aws_access_key_id=RGW_ACCESS_KEY_ID,
+#    aws_secret_access_key=RGW_SECRET_ACCESS_KEY
+#)
+
+def s3_object_init(s3_mode):
+    if s3_mode == "client":
+        return boto3.client(
+            "s3",
+            endpoint_url=endpoint,
+            aws_access_key_id=RGW_ACCESS_KEY_ID,
+            aws_secret_access_key=RGW_SECRET_ACCESS_KEY
+        )
+    elif s3_mode == "resource":
+        return boto3.resource(
+            "s3",
+            endpoint_url=endpoint,
+            aws_access_key_id=RGW_ACCESS_KEY_ID,
+            aws_secret_access_key=RGW_SECRET_ACCESS_KEY
+        )
+
 #####################################################################
 #####################################################################
 #####################################################################
@@ -39,6 +56,7 @@ def listOfBucketsFunction():
     Ceph RGW의 S3 API를 사용하여 버킷 목록을 가져오는 API
     """
     try:
+        s3 = s3_object_init("client")
         # 버킷 목록 가져오기
         buckets = s3.list_buckets()
         return jsonify({
@@ -68,6 +86,7 @@ def createBucketFunction():
     bucket_name = parameter_["name"]
 
     try:
+        s3 = s3_object_init("client")
         # S3 버킷 생성
         s3.create_bucket(Bucket=bucket_name)
 
@@ -77,6 +96,7 @@ def createBucketFunction():
 
 @app.route("/getListOfBucketsItems", methods=["GET"])
 def getListOfBucketsItemsFunction():
+    s3 = s3_object_init("client")
     # S3 버킷 목록 가져오기
     buckets = s3.list_buckets()["Buckets"]
 
@@ -103,6 +123,7 @@ def getListOfBucketsItemsFunction():
 def empty_bucket(bucket_name):
     """버킷 내 모든 객체 삭제"""
     try:
+        s3 = s3_object_init("client")
         objects = s3.list_objects_v2(Bucket=bucket_name)
         if "Contents" in objects:
             for obj in objects["Contents"]:
@@ -113,6 +134,8 @@ def empty_bucket(bucket_name):
 
 @app.route("/deleteBucket", methods=["DELETE"])
 def deleteBucketFunction():
+    s3 = s3_object_init("client")
+    
     parameter_ = request.args.to_dict(flat=True)
 
     if "name" not in parameter_:
@@ -134,6 +157,7 @@ def deleteBucketFunction():
 
 @app.route("/getObjectContent", methods=["GET"])
 def getObjectContentFunction():
+    s3 = s3_object_init("resource")
     parameter_ = request.args.to_dict(flat=True)
 
     if "bucketName" not in parameter_:
@@ -147,15 +171,7 @@ def getObjectContentFunction():
     try:
         object_content = {}
 
-        local_s3 = boto3.resource(
-                "s3",
-                endpoint_url=endpoint,
-                aws_access_key_id=RGW_ACCESS_KEY_ID,
-                aws_secret_access_key=RGW_SECRET_ACCESS_KEY
-                )
-
-        #boto3.resource.Object($Bucketanme, $key)
-        obj = local_s3.Object(bucket_name, file_name)
+        obj = s3.Object(bucket_name, file_name)
         response = obj.get()
         data = response['Body'].read()
         object_content['Body']=str(data, 'utf-8')
@@ -166,7 +182,7 @@ def getObjectContentFunction():
 
 @app.route("/createObject", methods=["POST"])
 def createObjectFunction():
-
+    s3 = s3_object_init("resource")
     parameter_ = request.args.to_dict(flat=True)
 
     if "bucketName" not in parameter_:
@@ -178,26 +194,19 @@ def createObjectFunction():
 
     bucket_name = parameter_["bucketName"]
     file_name = parameter_["fileName"]
-    file_content = parameter_["fileContent"] # 수정 및 코드 업데이트 필요! -> 현재 전달받은 값밖게안됨, 파일등으로 바꾸기위해선 해당 내용도 수용가능하도록 바꿔야
+    file_content = parameter_["fileContent"] 
 
     try:
-        local_s3 = boto3.resource(
-            "s3",
-            endpoint_url=endpoint,
-            aws_access_key_id=RGW_ACCESS_KEY_ID,
-            aws_secret_access_key=RGW_SECRET_ACCESS_KEY
-        )
-        bucket = local_s3.Bucket(bucket_name)
+        bucket = s3.Bucket(bucket_name)
         bucket.put_object(Key=file_name, Body=file_content)
 
         return jsonify({"message": f"Create Object Success"}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# react web ui test
 @app.route("/createObject_v2", methods=["POST"])
-#@app.route("/upload", methods=["POST"])
 def createObjectFunction_v2():
+    s3 = s3_object_init("resource")
 
     if "file" not in request.files:
         return jsonify({"error": "No file part"}), 400
@@ -212,20 +221,8 @@ def createObjectFunction_v2():
     if bucket_name == "":
         return jsonify({"error": "No selected bucket"}), 400
 
-    #filename = secure_filename(file.filename)  # 보안 처리된 파일 이름 사용
-    #file.save(os.path.join(UPLOAD_FOLDER, filename))
-    #return jsonify({"message": "File uploaded successfully", "filename": filename}), 201
     try:
-        local_s3 = boto3.resource(
-            "s3",
-            endpoint_url=endpoint,
-            aws_access_key_id=RGW_ACCESS_KEY_ID,
-            aws_secret_access_key=RGW_SECRET_ACCESS_KEY
-        )
-        # bucket = local_s3.Bucket(bucket_name)
-        # bucket = local_s3.Bucket("keti-rgw-bucket-newbucket")
-        print('bucketname: ', bucket_name)   # 10.0.0.254 - - [28/Feb/2025 09:00:36] "POST /createObject_v2 HTTP/1.1" 404 - 해결 해야됨 2025 02 28
-        bucket = local_s3.Bucket(bucket_name)
+        bucket = s3.Bucket(bucket_name)
         bucket.put_object(Key=file.filename, Body=file)
 
         return jsonify({"message": f"Create Object Success"}), 200
@@ -234,6 +231,7 @@ def createObjectFunction_v2():
 
 @app.route("/getDownloadObject", methods=["POST"])
 def donwloadObjectFunction():
+    s3 = s3_object_init("client")
     if "bucket" not in request.form:
         return jsonify({"error": "No select bucket"}), 400
     bucket_name = request.form["bucket"]
