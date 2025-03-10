@@ -76,23 +76,23 @@ def getEnvFunction():
         "AccessKey_Screts": RGW_SECRET_ACCESS_KEY
     })
 
-@app.route("/createBucket", methods=["POST"])
-def createBucketFunction():
-    # 요청에서 'name' 파라미터 가져오기
-    parameter_ = request.args.to_dict(flat=True)  # flat=True로 단일 값 가져오기
-    if "name" not in parameter_:
-        return jsonify({"error": "Missing 'name' parameter"}), 400
-
-    bucket_name = parameter_["name"]
-
-    try:
-        s3 = s3_object_init("client")
-        # S3 버킷 생성
-        s3.create_bucket(Bucket=bucket_name)
-
-        return jsonify({"message": f"Bucket '{bucket_name}' created successfully!"}), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+#@app.route("/createBucket", methods=["POST"])
+#def createBucketFunction():
+#    # 요청에서 'name' 파라미터 가져오기
+#    parameter_ = request.args.to_dict(flat=True)  # flat=True로 단일 값 가져오기
+#    if "name" not in parameter_:
+#        return jsonify({"error": "Missing 'name' parameter"}), 400
+#
+#    bucket_name = parameter_["name"]
+#
+#    try:
+#        s3 = s3_object_init("client")
+#        # S3 버킷 생성
+#        s3.create_bucket(Bucket=bucket_name)
+#
+#        return jsonify({"message": f"Bucket '{bucket_name}' created successfully!"}), 200
+#    except Exception as e:
+#        return jsonify({"error": str(e)}), 500
 
 @app.route("/getListOfBucketsItems", methods=["GET"])
 def getListOfBucketsItemsFunction():
@@ -132,28 +132,28 @@ def empty_bucket(bucket_name):
     except Exception as e:
         return str(e)
 
-@app.route("/deleteBucket", methods=["DELETE"])
-def deleteBucketFunction():
-    s3 = s3_object_init("client")
-    
-    parameter_ = request.args.to_dict(flat=True)
-
-    if "name" not in parameter_:
-        return jsonify({"error": "Missing 'name' parameter"}), 400
-
-    bucket_name = parameter_["name"]
-
-    try:
-        # 버킷 내 모든 객체 삭제
-        empty_bucket_result = empty_bucket(bucket_name)
-        if empty_bucket_result is not True:
-            return jsonify({"error": empty_bucket_result}), 500
-
-        # 버킷 삭제
-        s3.delete_bucket(Bucket=bucket_name)
-        return jsonify({"message": f"Bucket '{bucket_name}' deleted successfully!"}), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+#@app.route("/deleteBucket", methods=["DELETE"])
+#def deleteBucketFunction():
+#    s3 = s3_object_init("client")
+#    
+#    parameter_ = request.args.to_dict(flat=True)
+#
+#    if "name" not in parameter_:
+#        return jsonify({"error": "Missing 'name' parameter"}), 400
+#
+#    bucket_name = parameter_["name"]
+#
+#    try:
+#        # 버킷 내 모든 객체 삭제
+#        empty_bucket_result = empty_bucket(bucket_name)
+#        if empty_bucket_result is not True:
+#            return jsonify({"error": empty_bucket_result}), 500
+#
+#        # 버킷 삭제
+#        s3.delete_bucket(Bucket=bucket_name)
+#        return jsonify({"message": f"Bucket '{bucket_name}' deleted successfully!"}), 200
+#    except Exception as e:
+#        return jsonify({"error": str(e)}), 500
 
 @app.route("/getObjectContent", methods=["GET"])
 def getObjectContentFunction():
@@ -180,29 +180,29 @@ def getObjectContentFunction():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@app.route("/createObject", methods=["POST"])
-def createObjectFunction():
-    s3 = s3_object_init("resource")
-    parameter_ = request.args.to_dict(flat=True)
-
-    if "bucketName" not in parameter_:
-        return jsonify({"error": "Missing 'bucketName' parameter"}), 400
-    if "fileName" not in parameter_:
-        return jsonify({"error": "Missing 'fileName' parameter"}), 400
-    if "fileContent" not in parameter_:
-        return jsonify({"error": "Missing 'fileContent' parameter"}), 400
-
-    bucket_name = parameter_["bucketName"]
-    file_name = parameter_["fileName"]
-    file_content = parameter_["fileContent"] 
-
-    try:
-        bucket = s3.Bucket(bucket_name)
-        bucket.put_object(Key=file_name, Body=file_content)
-
-        return jsonify({"message": f"Create Object Success"}), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+#@app.route("/createObject", methods=["POST"])
+#def createObjectFunction():
+#    s3 = s3_object_init("resource")
+#    parameter_ = request.args.to_dict(flat=True)
+#
+#    if "bucketName" not in parameter_:
+#        return jsonify({"error": "Missing 'bucketName' parameter"}), 400
+#    if "fileName" not in parameter_:
+#        return jsonify({"error": "Missing 'fileName' parameter"}), 400
+#    if "fileContent" not in parameter_:
+#        return jsonify({"error": "Missing 'fileContent' parameter"}), 400
+#
+#    bucket_name = parameter_["bucketName"]
+#    file_name = parameter_["fileName"]
+#    file_content = parameter_["fileContent"] 
+#
+#    try:
+#        bucket = s3.Bucket(bucket_name)
+#        bucket.put_object(Key=file_name, Body=file_content)
+#
+#        return jsonify({"message": f"Create Object Success"}), 200
+#    except Exception as e:
+#        return jsonify({"error": str(e)}), 500
 
 @app.route("/createObject_v2", methods=["POST"])
 def createObjectFunction_v2():
@@ -263,7 +263,103 @@ def donwloadObjectFunction():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route("/deleteObject", methods=["DELETE"])
+def delete_object_function():
+    s3 = s3_object_init("client")
+    if "bucket" not in request.form:
+        return jsonify({"error": "No select bucket"}), 400
+    bucket_name = request.form["bucket"]
+    if bucket_name == "":
+        return jsonify({"error": "empty bucket_name"}), 400
 
+    if "obj" not in request.form:
+        return jsonify({"error": "No select object"}), 400
+    obj_name = request.form["obj"]
+    if obj_name == "":
+        return jsonify({"error": "No select object"}), 400
+
+    try:
+        response = s3.delete_object(
+                Bucket=bucket_name,
+                Key=obj_name,
+                )
+        
+        return jsonify({"result": response}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/createNewBucket", methods=["POST"])
+def create_new_bucket_function():
+    s3 = s3_object_init("client")
+    if "newBucket" not in request.form:
+        return jsonify({"error": "No input new bucket name"}), 400
+    new_bucket_name = request.form["newBucket"]
+    if new_bucket_name == "":
+        return jsonify({"error": "empty new bucket name"}), 400
+
+    if not new_bucket_name.islower():
+        return jsonify({"error": "Bucket names cannot contain uppercase letters"}), 400
+
+    try:
+        response = s3.create_bucket(
+                Bucket=new_bucket_name,
+                )
+        print('new Bucket name: ', new_bucket_name)
+        print('response: ', response)
+        return jsonify({"result": response}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/selectObjectPreviewContent", methods=["POST"])
+def select_object_preview_content_function():
+    s3 = s3_object_init("client")
+
+    if "bucket" not in request.form:
+        return jsonify({"error": "No select bucket"}), 400
+    bucket_name = request.form["bucket"]
+    if bucket_name == "":
+        return jsonify({"error": "empty bucket_name"}), 400
+
+    if "obj" not in request.form:
+        return jsonify({"error": "No select object"}), 400
+    obj_name = request.form["obj"]
+    if obj_name == "":
+        return jsonify({"error": "No select object"}), 400
+
+    try:
+        response = s3.get_object(Bucket=bucket_name, Key=obj_name)
+        file_content = response["Body"].read().decode("utf-8")
+        return jsonify({"content": file_content}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/deleteBucket", methods=["DELETE"])
+def deleteBucketFunction():
+    s3 = s3_object_init("client")
+
+    if "bucket" not in request.form:
+        return jsonify({"error": "No select bucket"}), 400
+    bucket_name = request.form["bucket"]
+    if bucket_name == "":
+        return jsonify({"error": "empty bucket_name"}), 400
+
+    try:
+        # 버킷 내 모든 객체 삭제
+        empty_bucket_result = empty_bucket(bucket_name)
+        if empty_bucket_result is not True:
+            return jsonify({"error": "Failed clear in bucket"}), 500
+
+        # 버킷 삭제
+        s3.delete_bucket(Bucket=bucket_name)
+        return jsonify({"message": f"Bucket '{bucket_name}' deleted successfully!"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+#==================================================
+#==================================================
+
+# @app.route("/pushContainerImage", methods=["POST"])
+# def push_container_image_function():
+    
 
 if __name__ == '__main__':
     app.run()
