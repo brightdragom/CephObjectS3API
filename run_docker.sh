@@ -1,8 +1,8 @@
 #!/bin/bash
 
 imgName="ceph-api-backend"
-targetPort=5000
-externalPort=5000
+targetPort=3001
+externalPort=3001
 lastTag=$(docker images | grep $imgName | awk '{print $2}')
 if [ -z "$lastTag" ]; then
         lastTag="0.0.0"
@@ -60,4 +60,4 @@ fi
 
 docker build --no-cache -t $imgName:$imgTag -f Dockerfile .
 
-docker run -it --rm -p $externalPort:$targetPort --env-file config.env --name $imgName $imgName:$imgTag
+docker run -it --rm -d -p $externalPort:$targetPort --env-file config.env --name $imgName $imgName:$imgTag

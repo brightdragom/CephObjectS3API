@@ -11,39 +11,97 @@ CORS(app)
 def hello():
     return 'Hello'
 
+def printLog(level, msg):
+    print(f"[{level}] :: {msg}")
+
 #####################################################################
 #####################################################################
 #####################################################################
 # 환경 변수에서 AWS S3 정보 가져오기
-HOST = os.getenv("BUCKET_HOST")
-PORT = os.getenv("BUCKET_PORT")
-RGW_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
-RGW_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
-endpoint="http://{}:{}".format(HOST, PORT)
+# 📌 전역 S3 설정용 딕셔너리
+s3Argument = {
+    "HOST": "",
+    "PORT": "",
+    "RGW_ACCESS_KEY_ID": "",
+    "RGW_SECRET_ACCESS_KEY": "",
+    "ENDPOINT": ""
+}
 
-#s3 = boto3.client(
-#    "s3",
-#    endpoint_url=endpoint,
-#    aws_access_key_id=RGW_ACCESS_KEY_ID,
-#    aws_secret_access_key=RGW_SECRET_ACCESS_KEY
-#)
+# 📌 환경 변수 기반 초기화 함수
+def initialize_s3_argument():
+    s3Argument["HOST"] = os.getenv("BUCKET_HOST", "")
+    s3Argument["PORT"] = os.getenv("BUCKET_PORT", "")
+    s3Argument["RGW_ACCESS_KEY_ID"] = os.getenv("AWS_ACCESS_KEY_ID", "")
+    s3Argument["RGW_SECRET_ACCESS_KEY"] = os.getenv("AWS_SECRET_ACCESS_KEY", "")
+    s3Argument["ENDPOINT"] = f"http://{s3Argument['HOST']}:{s3Argument['PORT']}"
+    printLog("INFO", f"S3 환경 초기화 완료: {s3Argument}")
+
+initialize_s3_argument()
 
 def s3_object_init(s3_mode):
     if s3_mode == "client":
         return boto3.client(
             "s3",
-            endpoint_url=endpoint,
-            aws_access_key_id=RGW_ACCESS_KEY_ID,
-            aws_secret_access_key=RGW_SECRET_ACCESS_KEY
+            endpoint_url=s3Argument["ENDPOINT"],
+            aws_access_key_id=s3Argument["RGW_ACCESS_KEY_ID"],
+            aws_secret_access_key=s3Argument["RGW_SECRET_ACCESS_KEY"]
         )
     elif s3_mode == "resource":
         return boto3.resource(
             "s3",
-            endpoint_url=endpoint,
-            aws_access_key_id=RGW_ACCESS_KEY_ID,
-            aws_secret_access_key=RGW_SECRET_ACCESS_KEY
+            endpoint_url=s3Argument["ENDPOINT"],
+            aws_access_key_id=s3Argument["RGW_ACCESS_KEY_ID"],
+            aws_secret_access_key=s3Argument["RGW_SECRET_ACCESS_KEY"]
         )
 
+@app.route("/s3ApiChange", methods=["POST"])
+def s3_api_chagne():
+
+    #s3 = s3_object_init("resource")
+    #parameter_ = request.args.to_dict(flat=True)
+    #bucket_name = request.form["bucket"]
+    parameter_ = request.form
+    print(f"[s3_api_change] parameter_: {parameter_}", flush=True)
+    
+    # 필수 파라미터 체크
+    required_fields = ["host", "port", "rgw_access_key_id", "rgw_secret_access_key"]
+    for field in required_fields:
+        if field not in parameter_:
+            return jsonify({"error": f"Missing '{field}' parameter"}), 400
+
+    try:
+        # os.environ은 함수가 아니라 dict처럼 사용해야 합니다
+        os.environ["BUCKET_HOST"] = parameter_.get("host")
+        os.environ["BUCKET_PORT"] = parameter_.get("port")
+        os.environ["AWS_ACCESS_KEY_ID"] = parameter_.get("rgw_access_key_id")
+        os.environ["AWS_SECRET_ACCESS_KEY"] = parameter_.get("rgw_secret_access_key")
+        
+        initialize_s3_argument()
+
+        return jsonify({"msg": "S3 API ENV Change Successfully"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    
+@app.route("/s3Check", methods=["GET"])
+def s3_now_connected():
+    flag = False
+    if HOST is None:
+        flag = True
+    elif PORT is None:
+        flag = True
+    elif RGW_ACCESS_KEY_ID is None:
+        flag = True
+    elif RGW_SECRET_ACCESS_KEY is None:
+        flag = True
+    elif endpoint is None:
+        flag = True
+    else:
+        flag = False
+
+    if flag:
+        return jsonify({"msg":"no"}), 403
+    else:
+        return jsonify({"msg": "yes"}), 200
 #####################################################################
 #####################################################################
 #####################################################################
@@ -70,10 +128,10 @@ def listOfBucketsFunction():
 @app.route("/getEnv", methods=["GET"])
 def getEnvFunction():
     return jsonify({
-        "HOST": HOST,
-        "PORT": PORT,
-        "AccessKey": RGW_ACCESS_KEY_ID,
-        "AccessKey_Screts": RGW_SECRET_ACCESS_KEY
+        "HOST": s3Argument["HOST"],
+        "PORT": s3Argument["PORT"],
+        "AccessKey": s3Argument["RGW_ACCESS_KEY_ID"],
+        "AccessKey_Screts": s3Argument["RGW_SECRET_ACCESS_KEY"]
     })
 
 #@app.route("/createBucket", methods=["POST"])
@@ -357,8 +415,8 @@ def deleteBucketFunction():
 #==================================================
 #==================================================
 
-# @app.route("/pushContainerImage", methods=["POST"])
-# def push_container_image_function():
+#@app.route("/pushContainerImage", methods=["POST"])
+#def push_container_image_function():
     
 
 if __name__ == '__main__':
